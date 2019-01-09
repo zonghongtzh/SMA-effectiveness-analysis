@@ -1,0 +1,28 @@
+import pandas as pd
+import project_infrastructure as PIN
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+sns.set()
+
+
+# Determining sample size first
+confidence_level = 0.95
+margin_of_error = 0.05
+population_size = 6922
+print("Sample size = " + str(PIN.smallest_sam_size(confidence_level, margin_of_error, population_size)))
+
+# sample size determined to be 364, conduct simple random sampling from the equity bank containing all equity ticker names
+df_index = pd.read_csv("Equity_bank.csv")
+Equity_pop = np.array(df_index.Symbol)
+rand_list = np.random.choice(Equity_pop,364)
+
+# save selected ticker names into a csv
+permanent_sample_list = rand_list
+ReadExcel = pd.read_excel('Permanent_equities_sample_list.xlsx')
+pd_permanent_sample_list = pd.DataFrame(permanent_sample_list)
+writer = pd.ExcelWriter('Permanent_equities_sample_list.xlsx')
+pd_permanent_sample_list.to_excel(writer,'Sheet1')
+writer.save()
+ReadExcel = pd.read_excel('Permanent_equities_sample_list.xlsx')
