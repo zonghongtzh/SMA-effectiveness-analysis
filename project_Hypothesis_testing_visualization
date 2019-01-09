@@ -1,0 +1,130 @@
+import pandas as pd
+import project_infrastructure as PIN
+import scipy.stats as sps
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+import statsmodels.formula.api as smf
+sns.set()
+
+#defining function for mass testing upper bound of 5% level of significance (right tail)
+def SMA_test_mean(SMA):
+    df_comdty = pd.read_csv("Comdty_bank.csv")
+    df_comdty_population = pd.read_csv("Comdty_population_tickers.csv")
+    comdty_pop = np.array(df_comdty_population.Ticker)
+    price_array = []
+    for i in range(len(comdty_pop)):
+        price_array.append(PIN.remove_NaN(np.array(df_comdty[comdty_pop[i]])[::-1]))
+    Comdty_Array_accuracy = []
+    for i in range(len(price_array)):
+        Comdty_Array_accuracy.append(PIN.correct_count(price_array[i],SMA))
+    Rand_Sample = pd.read_csv('fit_ticker_data.csv')
+    ticker_array = np.array(Rand_Sample.ticker)[:-5]
+    full_equity_close_array = []
+    for i in range(len(ticker_array)):
+        file_data = pd.read_csv(r'C:/Users/Tan Zong Hong/Python_codes/DAO2704 Project/Equity_csv/' + ticker_array[i] + ".csv")
+        Close = file_data.Close
+        full_equity_close_array.append(np.array(Close))
+    equity_close_array = full_equity_close_array
+    Equity_Array_accuracy = []
+    for i in range(len(equity_close_array)):
+            Equity_Array_accuracy.append(PIN.correct_count(equity_close_array[i],SMA))
+    Equity_accuracy_mean = np.mean(Equity_Array_accuracy)
+    Equity_accuracy_std = np.std(Equity_Array_accuracy)
+    Comdty_accuracy_Mean = np.mean(Comdty_Array_accuracy)
+    Comdty_accuracy_std = np.std(Comdty_Array_accuracy)
+    sam_size = len(Comdty_Array_accuracy)
+    lower_endpoint = sps.norm.ppf(0.025, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)
+    upper_endpoint = sps.norm.ppf(0.975, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)
+    return [Equity_accuracy_mean,upper_endpoint]
+    
+# selecting SMA periods for mass testing and running test
+SMA = [10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,170,180,190,200]
+SMA_mean_list = []
+for i in range(len(SMA)):
+    SMA_mean_list.append(SMA_test_mean(SMA[i]))
+mean_x_y = np.array(SMA_mean_list)
+mean_x_y_trans = mean_x_y.transpose()
+
+# plotting output
+import matplotlib.axes as ax
+plt.figure(figsize = (15,10))
+plt.scatter(mean_x_y_trans[1],mean_x_y_trans[0], color = "red")
+
+# X = Equity mean 
+# Y = Comdty upper bound
+# If X > Y, then alt hypothesis is accepted
+plt.plot(np.linspace(min(mean_x_y_trans[0]) - min(mean_x_y_trans[0])*0.01,max(mean_x_y_trans[0]) + max(mean_x_y_trans[0])*0.01),np.linspace(min(mean_x_y_trans[0]) - min(mean_x_y_trans[0])*0.01,max(mean_x_y_trans[0]) + max(mean_x_y_trans[0])*0.01), label = "y = x")
+plt.xlim((min(mean_x_y_trans[0]) - min(mean_x_y_trans[0])*0.01,max(mean_x_y_trans[0]) + max(mean_x_y_trans[0])*0.01))
+plt.ylim((min(mean_x_y_trans[0]) - min(mean_x_y_trans[0])*0.01,max(mean_x_y_trans[0]) + max(mean_x_y_trans[0])*0.01))
+plt.xlabel("Upper Bound",fontsize = 20)
+plt.ylabel("Equity sample mean accuracy",fontsize = 20)
+plt.legend(fontsize = 20)
+for i, txt in enumerate(SMA):
+    plt.annotate("SMA = " + str(txt), (mean_x_y_trans[1][i], mean_x_y_trans[0][i]), fontsize = 15)
+    
+# place all above 5% level of significance into list (reject null hypothesis) 
+reject_null_hypo = []
+for i in range(len(mean_x_y)):
+    if mean_x_y[i][0] > mean_x_y[i][1]:
+        reject_null_hypo.append(SMA[i])
+print("SMA = " + str(reject_null_hypo))
+
+
+
+#defining function for mass testing lower bound of 5% level of significance (left tail)
+def SMA_test_mean_lower(SMA):
+    df_comdty = pd.read_csv("Comdty_bank.csv")
+    df_comdty_population = pd.read_csv("Comdty_population_tickers.csv")
+    comdty_pop = np.array(df_comdty_population.Ticker)
+    price_array = []
+    for i in range(len(comdty_pop)):
+        price_array.append(PIN.remove_NaN(np.array(df_comdty[comdty_pop[i]])[::-1]))
+    Comdty_Array_accuracy = []
+    for i in range(len(price_array)):
+            Comdty_Array_accuracy.append(PIN.correct_count(price_array[i],SMA))
+    Rand_Sample = pd.read_csv('fit_ticker_data.csv')
+    ticker_array = np.array(Rand_Sample.ticker)[:-5]
+    full_equity_close_array = []
+    for i in range(len(ticker_array)):
+        file_data = pd.read_csv(r'C:/Users/Tan Zong Hong/Python_codes/DAO2704 Project/Equity_csv/' + ticker_array[i] + ".csv")
+        Close = file_data.Close
+        full_equity_close_array.append(np.array(Close))
+    equity_close_array = full_equity_close_array
+    Equity_Array_accuracy = []
+    for i in range(len(equity_close_array)):
+            Equity_Array_accuracy.append(PIN.correct_count(equity_close_array[i],SMA))
+    Equity_accuracy_mean = np.mean(Equity_Array_accuracy)
+    Equity_accuracy_std = np.std(Equity_Array_accuracy)
+    Comdty_accuracy_Mean = np.mean(Comdty_Array_accuracy)
+    Comdty_accuracy_std = np.std(Comdty_Array_accuracy)
+    sam_size = len(Comdty_Array_accuracy)
+    lower_endpoint = sps.norm.ppf(0.025, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)
+    upper_endpoint = sps.norm.ppf(0.975, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)
+    return [Equity_accuracy_mean,lower_endpoint]
+
+# selecting SMA periods for mass testing and running test
+SMA = [10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,170,180,190,200]
+SMA_mean_list1 = []
+for i in range(len(SMA)):
+    SMA_mean_list1.append(SMA_test_mean_lower(SMA[i]))
+lower_mean_x_y = np.array(SMA_mean_list1)
+lower_mean_x_y_trans = lower_mean_x_y.transpose()
+
+# plotting output
+plt.figure(figsize = (15,10))
+plt.scatter(lower_mean_x_y_trans[1],lower_mean_x_y_trans[0], color = "red")
+
+# X = Equity mean 
+# Y = Comdty upper bound
+# If X > Y, then alt hypothesis is lower_mean_x_y_trans
+plt.plot(np.linspace(min(lower_mean_x_y_trans[0]) - min(lower_mean_x_y_trans[0])*0.01,max(lower_mean_x_y_trans[0]) + max(lower_mean_x_y_trans[0])*0.01),np.linspace(min(lower_mean_x_y_trans[0]) - min(lower_mean_x_y_trans[0])*0.01,max(lower_mean_x_y_trans[0]) + max(lower_mean_x_y_trans[0])*0.01), label = "y = x")
+plt.xlim((min(lower_mean_x_y_trans[1]) - min(lower_mean_x_y_trans[1])*0.01,max(lower_mean_x_y_trans[1]) + max(lower_mean_x_y_trans[1])*0.01))
+plt.ylim((min(lower_mean_x_y_trans[0]) - min(lower_mean_x_y_trans[0])*0.01,max(lower_mean_x_y_trans[0]) + max(lower_mean_x_y_trans[0])*0.01))
+plt.xlabel("Lower Bound",fontsize = 20)
+plt.ylabel("Equity sample mean accuracy",fontsize = 20)
+plt.legend(fontsize = 20)
+
+for i, txt in enumerate(SMA):
+    plt.annotate("SMA = " + str(txt), (lower_mean_x_y_trans[1][i], lower_mean_x_y_trans[0][i]), fontsize = 15)
