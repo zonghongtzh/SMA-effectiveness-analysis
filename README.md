@@ -22,4 +22,5 @@ file from 'Equity_csv' file for its calculation.
 Simple Moving Average analysis (Comparison between Commodity and Equity market)
 
 https://drive.google.com/open?id=12rTuEGf0jhB3LfIcQTp32Be4esSCiDM3 
+
 (html files must be downloaded to view in chrome)
