@@ -18,7 +18,7 @@ file from 'Equity_csv' file for its calculation.
 
 (note: due to small population size of commodities (31 commodities with sufficient volume), it is viable to do a population census) 
 
-# Full PDF report 
+# Full PDF report and visuals
 Simple Moving Average analysis (Comparison between Commodity and Equity market)
 
 https://drive.google.com/open?id=12rTuEGf0jhB3LfIcQTp32Be4esSCiDM3 
