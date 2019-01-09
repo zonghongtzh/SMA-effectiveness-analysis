@@ -15,3 +15,7 @@ prices and lead to gross over-estimation of the SMA Strategy accuracy.
 
 Since there was no significant time-load difference, the more accurate method was used, manually extracting every Equity csv 
 file from 'Equity_csv' file for its calculation.
+
+# Full PDF report 
+Simple Moving Average analysis (Comparison between Commodity and Equity market)
+https://drive.google.com/open?id=12rTuEGf0jhB3LfIcQTp32Be4esSCiDM3 
