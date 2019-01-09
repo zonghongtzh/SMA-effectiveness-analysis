@@ -1,0 +1,206 @@
+#note: Change the price-array from newest-to-oldest to oldest-to-newest --> the graph will draw from oldest-to-newest
+
+# removing NaN from array if necessary
+def remove_NaN(array):
+    import numpy as np
+    array = array[np.logical_not(np.isnan(array))]
+    return array
+
+def minima_maxima(array):
+    import numpy as np
+    graph = np.array(array)
+    next_point = np.array(array[1:])
+    rate_of_change = next_point - graph[:len(graph)-1]
+    rate_of_change_test = np.array(rate_of_change[1:])
+    table = np.empty(shape = (1,len(rate_of_change_test)))
+    table = ((rate_of_change[:len(rate_of_change)-1]<0) ==  (rate_of_change_test<0))
+    point_of_change = [i for i, x in enumerate(table) if x == False]
+    point_of_change = np.array(point_of_change)+1
+    minima_maxima_table = np.empty(shape = (1,len(point_of_change)))
+    minima_maxima_table = graph[point_of_change]
+    points = []
+    for i in range(len(point_of_change)):
+        points.append([point_of_change[i],minima_maxima_table[i]])
+    return points
+
+def q_q_plot_coeff(Array_accuracy):
+    import numpy as np
+    from scipy.stats import norm
+    mean = np.mean(Array_accuracy)
+    sd = np.std(Array_accuracy)
+    sorted_array = np.sort(Array_accuracy)
+    qq_serial_number = np.arange(1,len(Array_accuracy))
+    qq_quantile = qq_serial_number/len(qq_serial_number)
+    Theoradical_data = norm.ppf(qq_quantile,mean,sd)
+    coeff = np.corrcoef(sorted_array[:-2], Theoradical_data[:-1])[0, 1]
+    print("correl-coeff = " + str(coeff))
+    return coeff
+
+# Used to get the list of Simple-Moving-Average prices 
+def nday_SMA_index(array,days):
+    import numpy as np
+    array = array[:-1] 
+    SMA_len = len(array) - days
+    average_list = []
+    for i in range(SMA_len):
+        average_list.append(np.mean(array[-days-1-i:-1-i]))
+    table = np.empty(days)
+    table[:] = np.NaN
+    average_list = np.concatenate((table,average_list[::-1]))
+    return average_list
+
+# Used to get the graph of Simple-Moving-Average only 
+def nday_SMA_graph(array,days):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    array = array[:-1] 
+    SMA_len = len(array) - days
+    average_list = []
+    for i in range(SMA_len):
+        average_list.append(np.mean(array[-days-1-i:-1-i]))
+    table = np.empty(days)
+    table[:] = np.NaN
+    average_list = np.concatenate((table,average_list[::-1]))
+    return plt.plot(average_list, label = "SMA = " + str(days))
+
+# Used to get the graph with the price-list and Simple-Moving_Average 
+def nday_Array_SMA_graph(array,days):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    array = array[:-1] 
+    SMA_len = len(array) - days
+    average_list = []
+    for i in range(SMA_len):
+        average_list.append(np.mean(array[-days-1-i:-1-i]))
+    table = np.empty(days)
+    table[:] = np.NaN
+    average_list = np.concatenate((table,average_list[::-1]))
+    plt.plot(array,label = "Price", color = "blue")
+    return plt.plot(average_list, label = "Simple moving average " + str(days) + " days", alpha = 0.5)
+
+# This is the PREDICTOR: Used to get the buy/sell based on the comparison with Simple-Moving-Average
+def signal_value_array(array,days):
+    import numpy as np
+    array = array[:-1] 
+    SMA_len = len(array) - days
+    average_list = []
+    for i in range(SMA_len):
+        average_list.append(np.mean(array[-days-1-i:-1-i]))
+    table = np.empty(days)
+    table[:] = np.NaN
+    average_list = np.concatenate((table,average_list[::-1]))
+    signal_value = array - average_list
+    signal_value = signal_value[-SMA_len:] # positive = price greater than SMA = overpriced = sell
+    signal_value[signal_value > 0] = 0 #if array < SMA, Sell signal (Sell = 0)
+    signal_value[signal_value < 0] = 1 #if array > SMA, Buy Signal (Buy = 1)
+    return signal_value
+
+# This is the OUTCOME
+def profit_or_loss(array,days):
+    import numpy as np
+    array_1day_ahead = np.concatenate((array[1:],[0]))
+    profit_loss = array_1day_ahead - array
+    profit_loss = profit_loss[:-1]
+    profit_loss[profit_loss < 0] = 0 #if = 0, made loss
+    profit_loss[profit_loss > 0] = 1 #if = 1, profitted
+    return profit_loss[days:]
+
+def correct_count(array,days):
+    import project_infrastructure as PIN
+    import numpy as np
+    signal = PIN.signal_value_array(array,days)
+    Profit_or_loss = PIN.profit_or_loss(array,days)
+    tally_list = signal - Profit_or_loss
+    correct_count = len(array[days:-1]) - len(np.nonzero(tally_list)[0])
+    percentage_correct = correct_count/len(array[days:-1])
+    return percentage_correct
+
+
+def interval_estimator(sample_size, sample_mean, sample_var, confidence_level):
+    import numpy as np
+    from scipy.stats import norm
+    multiplier = -norm.ppf((1-confidence_level)/2)
+    error_width = multiplier * ((np.sqrt(sample_var))/(np.sqrt(sample_size)))
+    lower_bound = sample_mean - error_width
+    upper_bound = sample_mean + error_width
+    print(str(confidence_level*100) + '% confidence interval is: ['+str(lower_bound)+','+str(upper_bound), ']')
+    return [lower_bound,upper_bound]
+
+# Assumption here: find maxima of P(1-P) to get maximum margin of error, which in this case is set to be the "margin_of_error"
+def smallest_sam_size(confidence_level, margin_of_error, population_size):
+    import numpy as np
+    from scipy.stats import norm
+    multiplier = -norm.ppf((1-confidence_level)/2)
+    sam_size = (((multiplier**2)*0.5*(1-0.5))/margin_of_error**2)/(1+((multiplier**2)*0.5*(1-0.5))/((margin_of_error**2)*population_size))
+    return sam_size
+
+# ticker = ticker_array
+def webscraping_yahoo(ticker):
+    from selenium import webdriver
+    from selenium.webdriver.common.keys import Keys
+    driver = webdriver.Chrome(executable_path='C:\SeleniumDrivers\chromedriver')
+    site = []
+    dl_links = []
+    cookie_code = []
+    for i in range(len(ticker)):
+        site.append("https://sg.finance.yahoo.com/quote/" + ticker[i] + "/history?period1=1383235200&period2=1541001600&interval=1d&filter=history&frequency=1d")
+        driver.get(site[i])
+        links = [elem.get_attribute("href") for elem in driver.find_elements_by_tag_name('a')]
+        for i in range(len(links)):
+            if 130 < len(links[i]) < 150 and links[i][8] == "q":
+                dl_links.append(links[i])
+    for i in range(len(dl_links)):
+        cookie_code.append(dl_links[i][-11:])
+        dl_site = "https://query1.finance.yahoo.com/v7/finance/download/" + ticker[i] + "?period1=1383235200&period2=1541001600&interval=1d&events=history&crumb=" + cookie_code[i]
+        driver.get(dl_site)
+        
+def SMA_test(SMA):
+    import pandas as pd
+    import project_infrastructure as PIN
+    import scipy.stats as sps
+    import numpy as np
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from scipy.stats import norm
+    import statsmodels.formula.api as smf
+    sns.set()
+    df_comdty = pd.read_csv("Comdty_bank.csv")
+    df_comdty_population = pd.read_csv("Comdty_population_for_sampling.csv")
+    comdty_pop = np.array(df_comdty_population.Ticker)
+    price_array = []
+    for i in range(len(comdty_pop)):
+        price_array.append(PIN.remove_NaN(np.array(df_comdty[comdty_pop[i]])[::-1]))
+    Comdty_Array_accuracy = []
+    for i in range(len(price_array)):
+            Comdty_Array_accuracy.append(PIN.correct_count(price_array[i],SMA))
+    Rand_Sample = pd.read_csv('fit_ticker_data.csv')
+    ticker_array = np.array(Rand_Sample.ticker)
+    full_equity_close_array = []
+    for i in range(len(ticker_array)):
+        file_data = pd.read_csv(r'C:/Users/Tan Zong Hong/Python_codes/DAO2704 Project/Equity_excel/' + ticker_array[i] + ".csv")
+        Close = file_data.Close
+        full_equity_close_array.append(np.array(Close))
+    equity_close_array = full_equity_close_array[:-11]
+    Equity_Array_accuracy = []
+    for i in range(len(equity_close_array)):
+            Equity_Array_accuracy.append(PIN.correct_count(equity_close_array[i],SMA))
+    Equity_accuracy_mean = np.mean(Equity_Array_accuracy)
+    Equity_accuracy_std = np.std(Equity_Array_accuracy)
+    Comdty_accuracy_Mean = np.mean(Comdty_Array_accuracy)
+    Comdty_accuracy_std = np.std(Comdty_Array_accuracy)
+    sam_size = len(Comdty_Array_accuracy)
+    lower_endpoint = sps.norm.ppf(0.025, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)
+    upper_endpoint = sps.norm.ppf(0.975, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)
+    sample_mean = Equity_accuracy_mean
+    null_pop_mean = Comdty_accuracy_Mean
+    pop_var = Comdty_accuracy_std**2
+    sam_size = len(Comdty_Array_accuracy)
+    repeat = 50000
+    simu_sample = np.random.normal(loc = null_pop_mean, scale = pop_var**0.5, size = (repeat, sam_size))
+    simu_sample_mean = np.mean(simu_sample, axis = 1) 
+    sns.distplot(simu_sample_mean)
+    plt.axvline(x = sample_mean, color = "k", label = "Equity_accuracy_mean")
+    plt.axvline(x = np.percentile(simu_sample_mean, 2.5), ls = '--', color = "r")
+    plt.axvline(x = np.percentile(simu_sample_mean, 97.5), ls = '--', color = "r")
+    plt.legend(loc = "best")
+    plt.show()
