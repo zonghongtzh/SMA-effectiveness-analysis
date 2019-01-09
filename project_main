@@ -1,0 +1,130 @@
+import pandas as pd
+import project_infrastructure as PIN
+import scipy.stats as sps
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+sns.set()
+
+# Commodity testing
+df_comdty = pd.read_csv("Comdty_bank.csv")
+df_comdty_population = pd.read_csv("Comdty_population_tickers.csv")
+comdty_pop = np.array(df_comdty_population.Ticker)
+price_array = []
+for i in range(len(comdty_pop)):
+    price_array.append(PIN.remove_NaN(np.array(df_comdty[comdty_pop[i]])[::-1])) #date is from newest to oldest, hence must rotate
+days_list = [20]
+Comdty_Array_accuracy = []
+for i in range(len(price_array)):
+    for j in range(len(days_list)):
+        Comdty_Array_accuracy.append(PIN.correct_count(price_array[i],days_list[j]))
+# plotting the accuracy of SMA for all commodities
+plt.figure(figsize = (10,7))
+plt.hist(Comdty_Array_accuracy,label = "Comdty" + " SMA = " + str(days_list[0]),bins=10)
+plt.legend(fontsize = 20)
+plt.show()
+
+# verifying QQ-plot to prove that results can be approximated to normal distribution
+PIN.q_q_plot_coeff(Comdty_Array_accuracy)
+comdty_mean = np.mean(Comdty_Array_accuracy)
+comdty_sd = np.std(Comdty_Array_accuracy)
+condty_sorted_array = np.sort(Comdty_Array_accuracy)
+comdty_qq_serial_number = np.arange(0,len(Comdty_Array_accuracy))
+comdty_qq_quantile = comdty_qq_serial_number/len(comdty_qq_serial_number)
+comdty_Theoradical_data = norm.ppf(comdty_qq_quantile,comdty_mean,comdty_sd)
+plt.scatter(np.sort(Comdty_Array_accuracy),comdty_Theoradical_data)
+plt.xlabel("Comdty Array accuracy", fontsize = 13)
+plt.ylabel("theoretical  Normal data", fontsize = 13)
+plt.plot(np.linspace(0,1,100),np.linspace(0,1,100),color = "red",ls = '--',label = "y = x")
+plt.xlim(0.41,0.56)
+plt.ylim(0.42,0.56)
+plt.legend(fontsize = 13)
+plt.show()
+
+
+# Equity testing
+# Determining sample size first
+confidence_level = 0.95
+margin_of_error = 0.05
+population_size = 6922
+print("Sample size = " + str(PIN.smallest_sam_size(confidence_level, margin_of_error, population_size)))
+
+Rand_Sample = pd.read_csv('fit_ticker_data.csv')
+ticker_array = np.array(Rand_Sample.ticker)[:-5]
+
+full_equity_close_array = []
+for i in range(len(ticker_array)):
+    file_data = pd.read_csv(r'C:/Users/Tan Zong Hong/Python_codes/DAO2704 Project/Equity_csv/' + ticker_array[i] + ".csv")
+    Close = file_data.Close
+    full_equity_close_array.append(np.array(Close))
+equity_close_array = full_equity_close_array
+
+Equity_Array_accuracy = []
+for i in range(len(equity_close_array)):
+    for j in range(len(days_list)):
+        Equity_Array_accuracy.append(PIN.correct_count(equity_close_array[i],days_list[j]))
+# plotting SMA accuracy for equity 
+plt.figure(figsize = (10,7))
+plt.hist(Equity_Array_accuracy,label = "Equity" + " SMA = " + str(days_list[0]),bins=30)
+plt.legend(fontsize = 20)
+plt.show()
+
+# verifying QQ-plot to prove that results can be approximated to normal distribution
+PIN.q_q_plot_coeff(Equity_Array_accuracy)
+Equity_mean = np.mean(Equity_Array_accuracy)
+Equity_sd = np.std(Equity_Array_accuracy)
+Equity_sorted_array = np.sort(Equity_Array_accuracy)
+Equity_qq_serial_number = np.arange(0,len(Equity_Array_accuracy))
+Equity_qq_quantile = Equity_qq_serial_number/len(Equity_qq_serial_number)
+Equity_Theoradical_data = norm.ppf(Equity_qq_quantile,Equity_mean,comdty_sd)
+plt.scatter(np.sort(Equity_Array_accuracy),Equity_Theoradical_data)
+plt.xlabel("Equity Array accuracy", fontsize = 13)
+plt.ylabel("Theoretical Normal data", fontsize = 13)
+plt.plot(np.linspace(0,1,100),np.linspace(0,1,100),color = "red",ls = '--',label = "y = x")
+plt.xlim(0.2,0.62)
+plt.ylim(0.4,0.62)
+plt.show()
+
+# combined graph to show difference in accuracy (Graph not normalized)
+plt.figure(figsize = (10,7))
+plt.hist(Equity_Array_accuracy,label = "Equity" + " SMA = " + str(days_list[0]),bins=30, alpha = 0.5)
+plt.hist(Comdty_Array_accuracy,label = "Comdty" + " SMA = " + str(days_list[0]),bins=30, alpha = 1)
+plt.legend(fontsize = 13)
+plt.show()
+
+# Hypothesis testing
+Equity_accuracy_mean = np.mean(Equity_Array_accuracy)
+Equity_accuracy_std = np.std(Equity_Array_accuracy,ddof = 1)
+Comdty_accuracy_Mean = np.mean(Comdty_Array_accuracy)
+Comdty_accuracy_std = np.std(Comdty_Array_accuracy)
+
+print("E(Comdty accuracy) = " + str(Comdty_accuracy_Mean))
+print("Stdev(Comdty accuracy) = " + str(Comdty_accuracy_std))
+
+sam_size = len(Comdty_Array_accuracy)
+print("The lower endpoint of acceptance region is", 
+     sps.norm.ppf(0.025, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5)) 
+
+print("The upper endpoint of acceptance region is", 
+     sps.norm.ppf(0.975, loc = Comdty_accuracy_Mean, scale = ((Comdty_accuracy_std**2)/sam_size)**0.5))
+     
+# Simulated 50000 with calculated commodity mean and standard deviation, plot normal distribution curve
+sample_mean = Equity_accuracy_mean
+
+null_pop_mean = Comdty_accuracy_Mean
+pop_var = Comdty_accuracy_std**2
+sam_size = len(Comdty_Array_accuracy)
+
+repeat = 50000
+simu_sample = np.random.normal(loc = null_pop_mean, scale = pop_var**0.5, size = (repeat, sam_size))
+simu_sample_mean = np.mean(simu_sample, axis = 1) 
+
+print(sample_mean)
+plt.figure(figsize = (10,6))
+sns.distplot(simu_sample_mean)
+plt.axvline(x = sample_mean, color = "k", label = "Equity_accuracy_mean")
+plt.axvline(x = np.percentile(simu_sample_mean, 2.5), ls = '--', color = "r")
+plt.axvline(x = np.percentile(simu_sample_mean, 97.5), ls = '--', color = "r")
+plt.legend(loc = "best", fontsize = 20)
+plt.show()
