@@ -1,0 +1,102 @@
+import pandas as pd
+import project_infrastructure as PIN
+import scipy.stats as sps
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+from scipy.stats import bartlett
+import statsmodels.formula.api as smf
+sns.set()
+
+# for equity 
+Rand_Sample = pd.read_csv('fit_ticker_data.csv')
+ticker_array = np.array(Rand_Sample.ticker)[:-5]
+full_equity_close_array = []
+for i in range(len(ticker_array)):
+    file_data = pd.read_csv(r'C:/Users/Tan Zong Hong/Python_codes/DAO2704 Project/Equity_csv/' + ticker_array[i] + ".csv")
+    Close = file_data.Close
+    full_equity_close_array.append(np.array(Close))
+equity_close_array = full_equity_close_array
+
+def SMA_Regression_equity(SMA):
+    Equity_Array_accuracy = []
+    for i in range(len(equity_close_array)):
+        Equity_Array_accuracy.append(PIN.correct_count(equity_close_array[i],SMA))
+    return np.array([Equity_Array_accuracy,np.ones(len(Equity_Array_accuracy))*SMA]).transpose()
+SMA = [10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,170,180,190,200]
+equity_regression = []
+for i in range(len(SMA)):
+    equity_regression.append(SMA_Regression_equity(SMA[i]))
+    
+flattened_equity_regression = np.array(equity_regression).flatten()
+equity_regression_array = np.ones(shape = (2,int(len(flattened_equity_regression)/2)))
+
+for i in range(int(len(flattened_equity_regression)/2)):
+    equity_regression_array[0][i] =  flattened_equity_regression[0 + 2*i]
+    equity_regression_array[1][i] =  flattened_equity_regression[1 + 2*i]
+plt.figure(figsize = (15,10))
+sns.regplot(equity_regression_array[1],equity_regression_array[0])
+plt.xlabel("SMA",fontsize = 18)
+plt.ylabel("Equity SMA accuracy",fontsize = 18)
+plt.show()
+
+# using smf package 
+equity_df = pd.DataFrame(equity_regression_array.transpose(),columns = ["accuracy","SMA"])
+model_equity = smf.ols('accuracy ~ SMA', data=equity_df).fit()
+print(model_equity.summary())
+#test for homoscedasticity
+from scipy.stats import bartlett
+bartlett(equity_regression_array[0],equity_regression_array[1])
+
+# for commodities 
+def SMA_Regression_Comdty(SMA):
+    df_comdty = pd.read_csv("Comdty_bank.csv")
+    df_comdty_population = pd.read_csv("Comdty_population_tickers.csv")
+    comdty_pop = np.array(df_comdty_population.Ticker)
+    price_array = []
+    for i in range(len(comdty_pop)):
+        price_array.append(PIN.remove_NaN(np.array(df_comdty[comdty_pop[i]])[::-1]))
+    Comdty_Array_accuracy = []
+    for i in range(len(price_array)):
+        Comdty_Array_accuracy.append(PIN.correct_count(price_array[i],SMA))
+    return np.array([Comdty_Array_accuracy,np.ones(len(Comdty_Array_accuracy))*SMA]).transpose()
+comdty_regression = []
+for i in range(len(SMA)):
+    comdty_regression.append(SMA_Regression_Comdty(SMA[i]))
+flattened_comdty_regression = np.array(comdty_regression).flatten()
+comdty_regression_array = np.ones(shape = (2,int(len(flattened_comdty_regression)/2)))
+
+for i in range(int(len(flattened_comdty_regression)/2)):
+    comdty_regression_array[0][i] =  flattened_comdty_regression[0 + 2*i]
+    comdty_regression_array[1][i] =  flattened_comdty_regression[1 + 2*i]
+plt.figure(figsize = (15,10))
+sns.regplot(comdty_regression_array[1],comdty_regression_array[0])
+plt.xlabel("SMA",fontsize = 18)
+plt.ylabel("Comdty SMA accuracy",fontsize = 18)
+plt.show()
+
+#using SMF package
+comdty_df = pd.DataFrame(comdty_regression_array.transpose(),columns = ["accuracy","SMA"])
+model_comdty = smf.ols('accuracy ~ SMA', data=comdty_df).fit()
+print(model_comdty.summary())
+#test for homoscedasticity
+from scipy.stats import bartlett
+bartlett(comdty_regression_array[0],comdty_regression_array[1])
+
+# comparison 
+equity_line = model_equity.params["Intercept"] + (np.linspace(1,400,400))*(model_equity.params["SMA"]) 
+comdty_line = model_comdty.params["Intercept"] + (np.linspace(1,400,400))*(model_comdty.params["SMA"])
+plt.figure(figsize = (15,10))
+plt.plot(equity_line, label = "equity accuracy regression")
+plt.plot(comdty_line, label = "comdty accuracy regression")
+plt.xlabel("SMA", fontsize = 20)
+plt.ylabel("Accuracy of SMA", Fontsize = 20)
+plt.legend(fontsize = 20)
+plt.show()
+
+difference_array = np.abs((equity_line - comdty_line).tolist())
+print("point_of_intercept = " + str(PIN.minima_maxima(difference_array)))
+print("According to the accuracy regression lines, once SMA > " + str(PIN.minima_maxima(difference_array)[0][0]) + ", SMA Strategy is a better predictor for Comdty than Equity")
+accuracy_at_intersection = model_equity.params["Intercept"] + (PIN.minima_maxima(difference_array)[0][0])*(model_equity.params["SMA"])
+print(accuracy_at_intersection)
