@@ -16,6 +16,8 @@ prices and lead to gross over-estimation of the SMA Strategy accuracy.
 Since there was no significant time-load difference, the more accurate method was used, manually extracting every Equity csv 
 file from 'Equity_csv' file for its calculation.
 
+(note: due to small population size of commodities (31 commodities with sufficient volume), it is viable to do a population census) 
+
 # Full PDF report 
 Simple Moving Average analysis (Comparison between Commodity and Equity market)
 
